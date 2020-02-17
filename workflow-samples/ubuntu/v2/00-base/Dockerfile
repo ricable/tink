@@ -5,8 +5,7 @@ COPY get-package-list.sh git-lfs-linux-*-v2.5.1-4-g2f166e02 /tmp/osie/
 RUN apt-get update -y && \
     apt-get install -y $(/tmp/osie/get-package-list.sh) && \
     apt-get -qy autoremove && \
-    apt-get -qy clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/osie
+    apt-get -qy clean
 
 RUN apt-get -qy update && \
     apt-get install -y \
@@ -33,4 +32,3 @@ RUN apt-get -qy update && \
     apt-get -qy autoremove && \
     apt-get -qy clean && \
     rm -rf /var/lib/apt/lists/* /tmp/osie ~/.cache/pip*
-
