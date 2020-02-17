@@ -1,0 +1,41 @@
+version: '0.1'
+name: packet_ubuntu_provision
+global_timeout: 6000
+tasks:
+- name: "os-installation"
+  worker: "{{index .Targets "machine1" "mac_addr"}}"
+  actions:
+  - name: "disk-wipe"
+    image: disk-wipe
+    timeout: 90
+    volumes:
+      - /dev:/dev
+      - /dev/console:/dev/console
+      - /lib/firmware:/lib/firmware:ro
+  - name: "disk-partition"
+    image: disk-partition
+    timeout: 600
+    volumes:
+      - /dev:/dev
+      - /dev/console:/dev/console
+      - /lib/firmware:/lib/firmware:ro
+      - /statedir:/statedir
+  - name: "fetch-assets"
+    image: fetch-assets
+    timeout: 600
+    volumes:
+      - /dev:/dev
+      - /dev/console:/dev/console
+      - /lib/firmware:/lib/firmware:ro
+      - /assets:/assets
+  - name: "install-grub"
+    image: install-grub
+    timeout: 600
+    volumes:
+      - /dev:/dev
+      - /dev/console:/dev/console
+      - /lib/firmware:/lib/firmware:ro
+      - /assets:/tmp/assets
+      - /statedir:/statedir
+
+
