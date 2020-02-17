@@ -1,4 +1,5 @@
-FROM 192.168.1.1/osie:base
+ARG REGISTRY
+FROM $REGISTRY/ubuntu:base
 COPY wipe.sh /
 ENTRYPOINT ["./wipe.sh"]
 
