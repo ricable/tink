@@ -6,13 +6,19 @@ set -o nounset
 # defaults
 # shellcheck disable=SC2207
 
-metadata=/metadata
-curl -sSL --connect-timeout 60 https://metadata.packet.net/metadata > $metadata
-check_required_arg "$metadata" 'metadata file' '-M'
-declare class && set_from_metadata class 'class' <"$metadata"
-declare facility && set_from_metadata facility 'facility' <"$metadata"
-declare os && set_from_metadata os 'operating_system.slug' <"$metadata"
-declare tag && set_from_metadata tag 'operating_system.image_tag' <"$metadata" || tag=""
+#metadata=/metadata
+#curl -sSL --connect-timeout 60 https://metadata.packet.net/metadata > $metadata
+#check_required_arg "$metadata" 'metadata file' '-M'
+#declare class && set_from_metadata class 'class' <"$metadata"
+#declare facility && set_from_metadata facility 'facility' <"$metadata"
+#declare os && set_from_metadata os 'operating_system.slug' <"$metadata"
+#declare tag && set_from_metadata tag 'operating_system.image_tag' <"$metadata" || tag=""
+
+ephemeral=/workflow/data.json
+class=$(jq -r .class "$ephemeral")
+facility=$(jq -r .facility "$ephemeral")
+os=$(jq -r .os "$ephemeral")
+tag=$(jq -r .tag "$ephemeral")
 
 OS=$os${tag:+:$tag}
 arch=$(uname -m)
@@ -24,7 +30,8 @@ cprout=/statedir/cpr.json
 mkdir -p $target
 mkdir -p $target/boot
 mount -t efivarfs efivarfs /sys/firmware/efi/efivars
-mount -t ext4 /dev/sdd3 $target
+mount -t ext4 /dev/sda3 $target
+mkdir -p $target/boot/efi
 
 if ! [[ -f /statedir/disks-partioned-image-extracted ]]; then
     assetdir=/tmp/assets
@@ -32,7 +39,7 @@ if ! [[ -f /statedir/disks-partioned-image-extracted ]]; then
     OS=${OS%%:*}
 
     # Grub config
-    BASEURL='http://192.168.1.2/misc/osie/current'
+    BASEURL="http://$MIRROR_HOST/misc/osie/current"
     
     # Ensure critical OS dirs
     mkdir -p $target/{dev,proc,sys}
@@ -59,9 +66,9 @@ if ! [[ -f /statedir/disks-partioned-image-extracted ]]; then
     # Modules to throw on the target
     modules="$assetdir/modules.tar.gz"
     echo -e "${GREEN}#### Fetching and copying kernel, modules, and initrd to target $target ${NC}"
-    wget "$BASEURL/${OS//_(arm|image)//}/kernel.tar.gz" -P $assetdir
-    wget "$BASEURL/${OS//_(arm|image)//}/initrd.tar.gz" -P $assetdir
-    wget "$BASEURL/${OS//_(arm|image)//}/modules.tar.gz" -P $assetdir
+    wget "$BASEURL/$os/kernel.tar.gz" -P $assetdir
+    wget "$BASEURL/$os/initrd.tar.gz" -P $assetdir
+    wget "$BASEURL/$os/modules.tar.gz" -P $assetdir
     tar --warning=no-timestamp -zxf "$kernel" -C $target/boot
     kversion=$(vmlinuz_version $target/boot/vmlinuz)
     if [[ -z $kversion ]]; then
@@ -70,7 +77,7 @@ if ! [[ -f /statedir/disks-partioned-image-extracted ]]; then
     fi
 
     kernelname="vmlinuz-$kversion"
-    if [[ ${OS} =~ ^centos ]] || [[ ${OS} =~ ^rhel ]]; then
+    if [[ ${os} =~ ^centos ]] || [[ ${os} =~ ^rhel ]]; then
             initrdname=initramfs-$kversion.img
             modulesdest=usr
     else
@@ -85,13 +92,15 @@ if ! [[ -f /statedir/disks-partioned-image-extracted ]]; then
     cp "$target/boot/$initrdname" /statedir/initrd
 
     # Install grub
-    grub="$BASEURL/grub/${OS//_(arm|image)//}/$class/grub.template"
+    #grub="$BASEURL/grub/${OS//_(arm|image)//}/$class/grub.template"
+    grub="$BASEURL/grub/$os/$class/grub.template"
     echo -e "${GREEN}#### Installing GRUB2${NC}"
 
     wget "$grub" -O /tmp/grub.template
     wget "${grub}.default" -O /tmp/grub.default
 
-    mount -t vfat /dev/sdd1 $target/boot/efi
+    mkfs.vfat -c -F 32 /dev/sda1
+    mount -t vfat /dev/sda1 $target/boot/efi
     ./grub-installer.sh -v -p "$class" -t "$target" -C "$cprout" -D /tmp/grub.default -T /tmp/grub.template
 
     rootuuid=$(jq -r .rootuuid $cprout)
@@ -103,7 +112,7 @@ if ! [[ -f /statedir/disks-partioned-image-extracted ]]; then
 
     if [[ $custom_image == false ]]; then
             echo -e "${GREEN}#### Setting up package repos${NC}"
-            ./repos.sh -a "$arch" -t $target -f "$facility" -M "$metadata"
+            ./repos.sh -a "$arch" -t $target -f "$facility" -M "$ephemeral"
     fi
 fi
 

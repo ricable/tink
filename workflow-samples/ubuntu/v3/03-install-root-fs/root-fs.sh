@@ -4,8 +4,8 @@ source functions.sh && init
 set -o nounset
 
 ephemeral=/workflow/data.json
-os=jq -r .os "$ephemeral"
-tag=jq -r .tag "$ephemeral"
+os=$(jq -r .os "$ephemeral")
+tag=$(jq -r .tag "$ephemeral")
 
 target="/mnt/target"
 OS=$os${tag:+:$tag}
@@ -24,10 +24,10 @@ if ! [[ -f /statedir/disks-partioned-image-extracted ]]; then
     BASEURL="http://$MIRROR_HOST/misc/osie/current"
 
     # custom
-    wget "$BASEURL/${OS//_(arm|image)//}/image.tar.gz" -P $assetdir
+    wget "$BASEURL/$os/image.tar.gz" -P $assetdir
 
     mkdir -p $target
-    mount -t ext4 /dev/sdd3 $target
+    mount -t ext4 /dev/sda3 $target
     echo -e "${GREEN}#### Retrieving image and installing to target $target ${NC}"
     tar --xattrs --acls --selinux --numeric-owner --same-owner --warning=no-timestamp -zxpf "$image" -C $target
     echo -e "${GREEN}#### Success installing root fs ${NC}"   
