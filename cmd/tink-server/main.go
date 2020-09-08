@@ -175,7 +175,7 @@ func getCerts(flagSet *pflag.FlagSet, facility string, logger log.Logger) (tls.C
 
 	// If we read in a separate ca certificate, concatenate it with the tls cert
 	if len(caCertBytes) > 0 {
-		tlsCertBytes = append(caCertBytes, tlsCertBytes...)
+		tlsCertBytes = append(tlsCertBytes, caCertBytes...)
 	}
 
 	cert, err := tls.X509KeyPair(tlsCertBytes, tlsKeyBytes)
